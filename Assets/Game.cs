@@ -11,8 +11,8 @@ public class Game
   public Action<Dot> OnDisconnectDot;
   public int width = 6;
   public int height = 6;
+  public List<Dot> selected = new List<Dot>();
   int nextId = 0;
-  List<Dot> selected = new List<Dot>();
   System.Random dotGenerator;
   Color[] colors = new Color[]{
     Color.red,
@@ -114,6 +114,11 @@ public class Game
       throw new Exception("dot does not exist");
     }
     return new Vector2Int(column, row);
+  }
+
+  public int SelectedCount()
+  {
+    return this.selected.Count;
   }
 
   List<Dot> GetAllColor(Color color)

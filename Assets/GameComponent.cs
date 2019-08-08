@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
@@ -7,6 +8,9 @@ public class GameComponent : MonoBehaviour
   public RectTransform dotContainer;
   public GameObject dotPrefab;
   public GameObject connectorPrefab;
+  public AudioSource notesSource;
+  public AudioClip clip;
+  List<AudioClip> notes;
   Game game;
   float dotFallSpeed = 500f;
 
@@ -104,6 +108,7 @@ public class GameComponent : MonoBehaviour
       vertical ? distance : 20f
     );
     from.connector.SetSiblingIndex(0);
+    this.PlaySubclip();
   }
 
   void RemoveConnector(Dot dot)
@@ -147,5 +152,20 @@ public class GameComponent : MonoBehaviour
       (coord.x * xStep) + (xStep / 2),
       (coord.y * yStep) + (yStep / 2)
     );
+  }
+
+  void PlaySubclip()
+  {
+    var start = 0f;
+    var duration = .7f;
+    var frequency = this.clip.frequency;
+    int samplesLength = (int)(frequency * duration);
+    AudioClip newClip = AudioClip.Create(this.clip.name + "-sub", samplesLength, 1, frequency, false);
+    float[] data = new float[samplesLength];
+    this.clip.GetData(data, (int)(frequency * start));
+    newClip.SetData(data, 0);
+    this.notesSource.clip = newClip;
+    this.notesSource.pitch = 1 + ((this.game.SelectedCount() - 1) / 2f);
+    this.notesSource.Play();
   }
 }
