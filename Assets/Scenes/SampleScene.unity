@@ -641,6 +641,8 @@ MonoBehaviour:
   dotContainer: {fileID: 1943443440}
   dotPrefab: {fileID: 4785839436141761937, guid: 39e8933bcf027e8438e0694efbc349c9,
     type: 3}
+  connectorPrefab: {fileID: 821492376446301063, guid: 9197c9ef2b48612459823e0922647db9,
+    type: 3}
 --- !u!4 &1833913836
 Transform:
   m_ObjectHideFlags: 0

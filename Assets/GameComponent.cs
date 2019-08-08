@@ -6,6 +6,7 @@ public class GameComponent : MonoBehaviour
 {
   public RectTransform dotContainer;
   public GameObject dotPrefab;
+  public GameObject connectorPrefab;
   Game game;
   float dotFallSpeed = 500f;
 
@@ -35,7 +36,10 @@ public class GameComponent : MonoBehaviour
       GameObject.Destroy(dot.gameObject);
     }
     this.game = new Game(6, 6);
-    this.game.onDotSpawn = this.SpawnDotObject;
+    this.game.OnDotSpawn = this.SpawnDotObject;
+    this.game.OnDotDespawn = this.DespawnDot;
+    this.game.OnConnectDot = this.SpawnConnector;
+    this.game.OnDisconnectDot = this.RemoveConnector;
     this.game.NewGame();
   }
 
@@ -47,9 +51,12 @@ public class GameComponent : MonoBehaviour
     else outline.gameObject.SetActive(false);
   }
 
-  void SpawnDotObject(Dot dot, int column)
+  void SpawnDotObject(Dot dot)
   {
-    var startingPosition = new Vector2(this.CalculateDotX(column), this.dotContainer.rect.height);
+    var startingPosition = new Vector2(
+      this.GetDotPosition(dot).x,
+      this.dotContainer.rect.height
+    );
     dot.transform = Instantiate(
       this.dotPrefab,
       startingPosition,
@@ -72,13 +79,46 @@ public class GameComponent : MonoBehaviour
     dot.transform.anchoredPosition = startingPosition;
   }
 
+  void DespawnDot(Dot dot)
+  {
+    if (dot.connector != null) GameObject.Destroy(dot.connector.gameObject);
+    if (dot.transform != null) GameObject.Destroy(dot.transform.gameObject);
+  }
+
+  void SpawnConnector(Dot from, Dot to)
+  {
+    from.connector = Instantiate(
+      this.connectorPrefab,
+      this.dotContainer
+    ).GetComponent<RectTransform>();
+    var fromCoord = this.game.FindDotCoordinates(from);
+    var toCoord = this.game.FindDotCoordinates(to);
+    var fromPos = this.GetDotPosition(from);
+    var toPos = this.GetDotPosition(to);
+    var center = (this.GetDotPosition(from) + this.GetDotPosition(to)) / 2f;
+    var distance = Vector2.Distance(fromPos, toPos);
+    var vertical = fromCoord.x == toCoord.x;
+    from.connector.anchoredPosition = center;
+    from.connector.sizeDelta = new Vector2(
+      vertical ? 20f : distance,
+      vertical ? distance : 20f
+    );
+    from.connector.SetSiblingIndex(0);
+  }
+
+  void RemoveConnector(Dot dot)
+  {
+    if (dot.connector == null) return;
+    GameObject.Destroy(dot.connector.gameObject);
+  }
+
   void DropDotObject(Dot dot)
   {
-    var row = this.game.FindDotPosition(dot).y;
+    var row = this.game.FindDotCoordinates(dot).y;
     var currentPosition = dot.transform.anchoredPosition;
     var targetPosition = new Vector2(
       currentPosition.x,
-      this.CalculateDotY(row)
+      this.GetDotPosition(dot).y
     );
     if (currentPosition.y <= targetPosition.y)
     {
@@ -98,15 +138,14 @@ public class GameComponent : MonoBehaviour
     this.game.SelectDot(dot);
   }
 
-  float CalculateDotX(int column)
+  Vector2 GetDotPosition(Dot dot)
   {
-    float step = this.dotContainer.rect.width / this.game.width;
-    return (column * step) + (step / 2);
-  }
-
-  float CalculateDotY(int row)
-  {
-    float step = this.dotContainer.rect.height / this.game.height;
-    return (row * step) + (step / 2);
+    var coord = this.game.FindDotCoordinates(dot);
+    var xStep = this.dotContainer.rect.width / this.game.width;
+    var yStep = this.dotContainer.rect.height / this.game.height;
+    return new Vector2(
+      (coord.x * xStep) + (xStep / 2),
+      (coord.y * yStep) + (yStep / 2)
+    );
   }
 }

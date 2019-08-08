@@ -5,7 +5,10 @@ using UnityEngine;
 public class Game
 {
   public List<List<Dot>> board;
-  public Action<Dot, int> onDotSpawn;
+  public Action<Dot> OnDotSpawn;
+  public Action<Dot> OnDotDespawn;
+  public Action<Dot, Dot> OnConnectDot;
+  public Action<Dot> OnDisconnectDot;
   public int width = 6;
   public int height = 6;
   int nextId = 0;
@@ -47,6 +50,7 @@ public class Game
       var secondToLastDot = this.selected[this.selected.Count - 2];
       if (dot.id == secondToLastDot.id)
       {
+        if (this.OnDisconnectDot != null) this.OnDisconnectDot(dot);
         this.selected.RemoveAt(this.selected.Count - 1);
         return;
       }
@@ -55,6 +59,7 @@ public class Game
       // create loop
       if (this.selected[0].id == dot.id)
       {
+        if (this.OnConnectDot != null) this.OnConnectDot(this.selected[this.selected.Count - 1], dot);
         this.selected.Add(dot);
         return;
       }
@@ -63,14 +68,15 @@ public class Game
     if (this.selected.Count > 0)
     {
       var lastSelectedDot = this.selected[this.selected.Count - 1];
-      var lastSelectedPosition = this.FindDotPosition(lastSelectedDot);
-      var position = this.FindDotPosition(dot);
+      var lastSelectedPosition = this.FindDotCoordinates(lastSelectedDot);
+      var position = this.FindDotCoordinates(dot);
       if (
         Math.Abs(lastSelectedPosition.x - position.x) +
         Math.Abs(lastSelectedPosition.y - position.y) > 1
       ) return;
       if (lastSelectedDot.color != dot.color) return;
       if (this.selected.FindIndex(v => v.id == dot.id) > -1) return;
+      if (this.OnConnectDot != null) this.OnConnectDot(this.selected[this.selected.Count - 1], dot);
     }
     this.selected.Add(dot);
   }
@@ -84,7 +90,7 @@ public class Game
       {
         this.selected = this.GetAllColor(this.selected[0].color);
       }
-      this.selected.ForEach(dot => this.RemoveDot(dot, this.FindDotPosition(dot).x));
+      this.selected.ForEach(dot => this.RemoveDot(dot, this.FindDotCoordinates(dot).x));
     }
     this.selected = new List<Dot>();
   }
@@ -94,7 +100,7 @@ public class Game
     return this.selected.FindIndex(d => d.id == dot.id) > -1;
   }
 
-  public Vector2Int FindDotPosition(Dot dot)
+  public Vector2Int FindDotCoordinates(Dot dot)
   {
     int row = -1;
     int column = this.board.FindIndex(c =>
@@ -125,6 +131,7 @@ public class Game
     GameObject.Destroy(dot.transform.gameObject);
     this.board[column].Remove(dot);
     this.SpawnNewDot(column);
+    if (this.OnDotDespawn != null) this.OnDotDespawn(dot);
   }
 
   void SpawnNewDot(int column)
@@ -135,7 +142,7 @@ public class Game
     }
     var dot = new Dot(this.nextId++, this.GetRandomColor());
     this.board[column].Add(dot);
-    if (this.onDotSpawn != null) this.onDotSpawn(dot, column);
+    if (this.OnDotSpawn != null) this.OnDotSpawn(dot);
   }
 
   Color GetRandomColor()
