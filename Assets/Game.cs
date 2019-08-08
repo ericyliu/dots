@@ -1,30 +1,15 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.EventSystems;
-using UnityEngine.UI;
 
-public class Dot
+public class Game
 {
-  public int id;
-  public Color color;
-  public RectTransform transform;
-
-  public Dot(int id, Color color)
-  {
-    this.id = id;
-    this.color = color;
-  }
-}
-
-public class Game : MonoBehaviour
-{
-  public RectTransform dotContainer;
-  public GameObject dotPrefab;
+  public List<List<Dot>> board;
+  public Action<Dot, int> onDotSpawn;
   public int width = 6;
   public int height = 6;
-  public float dotFallSpeed = 5f;
-  List<List<Dot>> board;
+  int nextId = 0;
+  List<Dot> selected = new List<Dot>();
   System.Random dotGenerator;
   Color[] colors = new Color[]{
     Color.red,
@@ -32,64 +17,18 @@ public class Game : MonoBehaviour
     Color.yellow,
     Color.magenta,
   };
-  List<Dot> selected = new List<Dot>();
-  int nextId = 0;
 
-  public void OnPointerUp()
-  {
-    if (this.selected.Count > 1)
-    {
-      // on loop
-      if (this.selected[0].id == this.selected[this.selected.Count - 1].id)
-      {
-        Color color = this.selected[0].color;
-        this.selected = new List<Dot>();
-        this.board.ForEach(column => column.ForEach(dot =>
-        {
-          if (dot.color == color) this.selected.Add(dot);
-        }));
-      }
-      this.selected.ForEach(dot => this.RemoveDot(dot, this.FindDotPosition(dot).x));
-    }
-    this.selected = new List<Dot>();
-  }
-
-  void Start()
-  {
-    this.NewGame();
-  }
-
-  void Update()
-  {
-    for (int i = 0; i < this.board.Count; i++)
-    {
-      for (int j = 0; j < this.board[i].Count; j++)
-      {
-        var dot = this.board[i][j];
-        this.SetDotSelected(dot);
-        if (dot.transform == null) this.SpawnDotObject(dot, i, j);
-        else this.DropDotObject(dot, j);
-      }
-    }
-  }
-
-  void SetDotSelected(Dot dot)
-  {
-    if (dot.transform == null) return;
-    var outline = dot.transform.Find("Outline");
-    if (this.selected.FindIndex(d => d.id == dot.id) > -1) outline.gameObject.SetActive(true);
-    else outline.gameObject.SetActive(false);
-  }
-
-  void NewGame()
+  public Game(int width, int height)
   {
     this.nextId = 0;
+    this.width = width;
+    this.height = height;
+  }
+
+  public void NewGame()
+  {
     this.dotGenerator = new System.Random();
     this.board = new List<List<Dot>>();
-    foreach (Transform dot in dotContainer)
-    {
-      GameObject.Destroy(dot.gameObject);
-    }
     for (int i = 0; i < this.width; i++)
     {
       this.board.Add(new List<Dot>());
@@ -100,63 +39,8 @@ public class Game : MonoBehaviour
     }
   }
 
-  void SpawnNewDot(int column)
+  public void SelectDot(Dot dot)
   {
-    if (this.board[column].Count >= this.height)
-    {
-      throw new Exception("dot cannot be dropped, column is full");
-    }
-    this.board[column].Add(new Dot(this.nextId++, this.GetRandomColor()));
-  }
-
-  void SpawnDotObject(Dot dot, int column, int row)
-  {
-    var startingPosition = new Vector2(this.CalculateDotX(column), this.dotContainer.rect.height);
-    dot.transform = Instantiate(
-      this.dotPrefab,
-      startingPosition,
-      Quaternion.identity,
-      this.dotContainer
-    ).GetComponent<RectTransform>();
-    dot.transform.Find("Image").GetComponent<Image>().color = dot.color;
-    var entry = new EventTrigger.Entry();
-    entry.eventID = EventTriggerType.PointerEnter;
-    entry.callback.AddListener(data => this.SelectDot(data, dot, true));
-    dot.transform.GetComponent<EventTrigger>().triggers.Add(entry);
-    var entry2 = new EventTrigger.Entry();
-    entry2.eventID = EventTriggerType.PointerDown;
-    entry2.callback.AddListener(data => this.SelectDot(data, dot));
-    dot.transform.GetComponent<EventTrigger>().triggers.Add(entry2);
-    var entry3 = new EventTrigger.Entry();
-    entry3.eventID = EventTriggerType.PointerUp;
-    entry3.callback.AddListener(data => this.OnPointerUp());
-    dot.transform.GetComponent<EventTrigger>().triggers.Add(entry3);
-    dot.transform.anchoredPosition = startingPosition;
-  }
-
-  void DropDotObject(Dot dot, int row)
-  {
-    var currentPosition = dot.transform.anchoredPosition;
-    var targetPosition = new Vector2(
-      currentPosition.x,
-      this.CalculateDotY(row)
-    );
-    if (currentPosition.y <= targetPosition.y)
-    {
-      dot.transform.anchoredPosition = targetPosition;
-      return;
-    }
-    dot.transform.anchoredPosition = new Vector3(
-      currentPosition.x,
-      currentPosition.y - (this.dotFallSpeed * Time.deltaTime)
-    );
-  }
-
-  void SelectDot(BaseEventData data, Dot dot, bool drag = false)
-  {
-    var position = this.FindDotPosition(dot);
-    var pointerData = (PointerEventData)data;
-    if (drag && !pointerData.dragging) return;
     if (this.selected.Count > 1)
     {
       // unselect dots
@@ -180,6 +64,7 @@ public class Game : MonoBehaviour
     {
       var lastSelectedDot = this.selected[this.selected.Count - 1];
       var lastSelectedPosition = this.FindDotPosition(lastSelectedDot);
+      var position = this.FindDotPosition(dot);
       if (
         Math.Abs(lastSelectedPosition.x - position.x) +
         Math.Abs(lastSelectedPosition.y - position.y) > 1
@@ -190,31 +75,26 @@ public class Game : MonoBehaviour
     this.selected.Add(dot);
   }
 
-  void RemoveDot(Dot dot, int column)
+  public void OnSelectionFinish()
   {
-    GameObject.Destroy(dot.transform.gameObject);
-    this.board[column].Remove(dot);
-    this.SpawnNewDot(column);
+    if (this.selected.Count > 1)
+    {
+      // on loop
+      if (this.selected[0].id == this.selected[this.selected.Count - 1].id)
+      {
+        this.selected = this.GetAllColor(this.selected[0].color);
+      }
+      this.selected.ForEach(dot => this.RemoveDot(dot, this.FindDotPosition(dot).x));
+    }
+    this.selected = new List<Dot>();
   }
 
-  float CalculateDotX(int column)
+  public bool IsDotSelected(Dot dot)
   {
-    float step = this.dotContainer.rect.width / this.width;
-    return (column * step) + (step / 2);
+    return this.selected.FindIndex(d => d.id == dot.id) > -1;
   }
 
-  float CalculateDotY(int row)
-  {
-    float step = this.dotContainer.rect.height / this.height;
-    return (row * step) + (step / 2);
-  }
-
-  Color GetRandomColor()
-  {
-    return this.colors[this.dotGenerator.Next(0, this.colors.Length)];
-  }
-
-  Vector2Int FindDotPosition(Dot dot)
+  public Vector2Int FindDotPosition(Dot dot)
   {
     int row = -1;
     int column = this.board.FindIndex(c =>
@@ -228,5 +108,38 @@ public class Game : MonoBehaviour
       throw new Exception("dot does not exist");
     }
     return new Vector2Int(column, row);
+  }
+
+  List<Dot> GetAllColor(Color color)
+  {
+    var dots = new List<Dot>();
+    this.board.ForEach(column => column.ForEach(dot =>
+    {
+      if (dot.color == color) dots.Add(dot);
+    }));
+    return dots;
+  }
+
+  public void RemoveDot(Dot dot, int column)
+  {
+    GameObject.Destroy(dot.transform.gameObject);
+    this.board[column].Remove(dot);
+    this.SpawnNewDot(column);
+  }
+
+  void SpawnNewDot(int column)
+  {
+    if (this.board[column].Count >= this.height)
+    {
+      throw new Exception("dot cannot be dropped, column is full");
+    }
+    var dot = new Dot(this.nextId++, this.GetRandomColor());
+    this.board[column].Add(dot);
+    if (this.onDotSpawn != null) this.onDotSpawn(dot, column);
+  }
+
+  Color GetRandomColor()
+  {
+    return this.colors[this.dotGenerator.Next(0, this.colors.Length)];
   }
 }
