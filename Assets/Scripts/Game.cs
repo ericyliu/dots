@@ -11,7 +11,7 @@ public class Game
   public Action<Dot> OnDisconnectDot;
   public int width = 6;
   public int height = 6;
-  public List<Dot> selected = new List<Dot>();
+  List<Dot> selected = new List<Dot>();
   int nextId = 0;
   System.Random dotGenerator;
   Color[] colors = new Color[]{
@@ -133,7 +133,6 @@ public class Game
 
   public void RemoveDot(Dot dot, int column)
   {
-    GameObject.Destroy(dot.transform.gameObject);
     this.board[column].Remove(dot);
     this.SpawnNewDot(column);
     if (this.OnDotDespawn != null) this.OnDotDespawn(dot);

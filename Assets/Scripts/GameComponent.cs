@@ -12,7 +12,7 @@ public class GameComponent : MonoBehaviour
   public AudioClip clip;
   List<AudioClip> notes;
   Game game;
-  float dotFallSpeed = 500f;
+  float dotFallSpeed = 1000f;
 
   void Start()
   {
